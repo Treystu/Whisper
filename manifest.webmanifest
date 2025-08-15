@@ -1,0 +1,22 @@
+{
+  "name": "P2P Whisper",
+  "short_name": "Whisper",
+  "description": "Serverless peer-to-peer chat with optional passphrase encryption.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
