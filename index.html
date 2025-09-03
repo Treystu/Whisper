@@ -38,6 +38,7 @@
     .qr{display:flex;align-items:center;justify-content:center;background:#0e1627;border:1px dashed #243049;border-radius:12px;height:120px}
     .foot{opacity:.7;text-align:center;margin-top:16px}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -74,6 +75,7 @@
         <div style="margin-top:10px">
           <div class="muted" style="margin:6px 0">Your Offer (send to peer)</div>
           <textarea id="offer" readonly placeholder="Click “Host: Create Offer”"></textarea>
+          <div id="offerQR" class="qr" style="margin-top:6px"></div>
           <div class="row" style="margin-top:6px">
             <button id="copyOffer">Copy</button>
           </div>
@@ -84,6 +86,7 @@
           <textarea id="answer" placeholder="Paste Answer here"></textarea>
           <div class="row" style="margin-top:6px">
             <button id="acceptAnswer" class="primary">Accept Answer</button>
+            <button id="scanAnswer">Scan QR</button>
           </div>
         </div>
 
@@ -93,8 +96,10 @@
           <div class="row" style="margin-top:6px">
             <button id="makeAnswer" class="primary">Create Answer</button>
             <button id="copyAnswer">Copy Answer</button>
+            <button id="scanOffer">Scan QR</button>
           </div>
           <textarea id="myAnswer" readonly placeholder="Your Answer will appear here" style="margin-top:6px"></textarea>
+          <div id="answerQR" class="qr" style="margin-top:6px"></div>
         </div>
 
         <div style="margin-top:10px">
@@ -127,8 +132,10 @@
     const list = $('list'); const input = $('input'); const sendBtn = $('sendBtn'); const clearBtn = $('clearBtn');
     const dot = $('dot'); const state = $('state'); const nickI = $('nick');
     const offerTA = $('offer'); const answerTA = $('answer'); const peerOfferTA = $('peerOffer'); const myAnswerTA = $('myAnswer');
+    const offerQR = $('offerQR'); const answerQR = $('answerQR');
     const hostBtn = $('hostBtn'); const joinBtn = $('joinBtn'); const copyOffer = $('copyOffer'); const copyAnswer = $('copyAnswer');
     const acceptAnswer = $('acceptAnswer'); const makeAnswer = $('makeAnswer');
+    const scanOfferBtn = $('scanOffer'); const scanAnswerBtn = $('scanAnswer');
     const encToggle = $('encToggle'); const passI = $('pass'); const icePreset = $('icePreset'); const iceNote = $('iceNote');
     const donateBtn = $('donateBtn');
 
@@ -155,6 +162,36 @@
     }
     function escapeHtml(s){return s.replace(/[&<>]/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
     function randomNick(){ const a=['shadow','ember','cipher','phantom','nova','quartz','zephyr','onyx']; const b=['fox','raven','pilot','sage','viper','saber','wisp','drake']; return a[Math.random()*a.length|0]+'-'+b[Math.random()*b.length|0]+'-'+(Math.random()*999|0); }
+
+    function showQR(el, text){
+      if (!window.QRCode) return;
+      el.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      QRCode.toCanvas(canvas, text, { width:110 }, err=>{ if(!err) el.appendChild(canvas); });
+    }
+
+    async function scanToTA(ta){
+      if (!('BarcodeDetector' in window)) return alert('QR scanning not supported');
+      const video = document.createElement('video');
+      video.setAttribute('playsinline', true);
+      video.style.display = 'none';
+      document.body.appendChild(video);
+      const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }});
+      video.srcObject = stream;
+      await video.play();
+      const detector = new BarcodeDetector({ formats:['qr_code'] });
+      let stopped = false;
+      const stop = ()=>{ if(stopped) return; stopped=true; stream.getTracks().forEach(t=>t.stop()); video.remove(); };
+      const scan = async()=>{
+        if (stopped) return;
+        try{
+          const codes = await detector.detect(video);
+          if (codes.length){ ta.value = codes[0].rawValue; stop(); }
+          else requestAnimationFrame(scan);
+        }catch{ stop(); }
+      };
+      scan();
+    }
 
     // ---- Minimal crypto (AES-GCM + PBKDF2) ----
     async function deriveKey(pass, salt) {
@@ -230,6 +267,7 @@
       await peer.setLocalDescription(offer);
       await waitIceComplete(peer);
       offerTA.value = JSON.stringify(peer.localDescription);
+      showQR(offerQR, offerTA.value);
       addMsg('Offer ready. Send it to your peer.', false, true);
     };
 
@@ -251,11 +289,14 @@
       await peer.setLocalDescription(answer);
       await waitIceComplete(peer);
       myAnswerTA.value = JSON.stringify(peer.localDescription);
+      showQR(answerQR, myAnswerTA.value);
       addMsg('Answer ready. Return it to the host.', false, true);
     };
 
     copyOffer.onclick = async()=> { if (!offerTA.value) return; await navigator.clipboard.writeText(offerTA.value); };
     copyAnswer.onclick = async()=> { if (!myAnswerTA.value) return; await navigator.clipboard.writeText(myAnswerTA.value); };
+    scanOfferBtn.onclick = ()=> scanToTA(peerOfferTA);
+    scanAnswerBtn.onclick = ()=> scanToTA(answerTA);
 
     sendBtn.onclick = async()=>{
       if (!dc || dc.readyState !== 'open') return alert('Not connected');
