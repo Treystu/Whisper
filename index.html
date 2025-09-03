@@ -284,25 +284,25 @@
       addMsg('Answer ready. Return it to the host.', false, true);
     };
 
-      copyOffer.onclick = async()=> { if (!offerTA.value) return; await navigator.clipboard.writeText(offerTA.value); };
-      copyAnswer.onclick = async()=> { if (!myAnswerTA.value) return; await navigator.clipboard.writeText(myAnswerTA.value); };
+    copyOffer.onclick = async()=> { if (!offerTA.value) return; await navigator.clipboard.writeText(offerTA.value); };
+    copyAnswer.onclick = async()=> { if (!myAnswerTA.value) return; await navigator.clipboard.writeText(myAnswerTA.value); };
 
-      sendBtn.onclick = async()=>{
-        if (!dc || dc.readyState !== 'open') return alert('Not connected');
-        if (encToggle.checked && passI.value) {
-          if (tokenMatch === false) return alert('Passphrase mismatch. Message not sent.');
-          if (tokenMatch === null) return alert('Passphrase not verified yet.');
-        }
-        const text = input.value.trim(); if (!text) return;
-        let payload = { type:'chat', from:nickI.value || 'me', ts: Date.now(), text };
-        if (encToggle.checked && passI.value) {
-          const enc = await encrypt(passI.value, text);
-          payload = { type:'chat', from:nickI.value || 'me', ts: Date.now(), text:'[encrypted]', enc };
-        }
-        dc.send(JSON.stringify(payload));
-        addMsg(text, true);
-        input.value = '';
-      };
+    sendBtn.onclick = async()=>{
+      if (!dc || dc.readyState !== 'open') return alert('Not connected');
+      if (encToggle.checked && passI.value) {
+        if (tokenMatch === false) return alert('Passphrase mismatch. Message not sent.');
+        if (tokenMatch === null) return alert('Passphrase not verified yet.');
+      }
+      const text = input.value.trim(); if (!text) return;
+      let payload = { type:'chat', from:nickI.value || 'me', ts: Date.now(), text };
+      if (encToggle.checked && passI.value) {
+        const enc = await encrypt(passI.value, text);
+        payload = { type:'chat', from:nickI.value || 'me', ts: Date.now(), text:'[encrypted]', enc };
+      }
+      dc.send(JSON.stringify(payload));
+      addMsg(text, true);
+      input.value = '';
+    };
 
     input.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
     clearBtn.onclick = ()=> { list.innerHTML = ''; };
