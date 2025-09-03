@@ -215,9 +215,14 @@
         return new TextDecoder().decode(pt);
       }catch{ throw new Error('bad pass'); }
     }
+    async function hashToken(pass){
+      const data = new TextEncoder().encode(pass);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return btoa(String.fromCharCode(...new Uint8Array(hash))).slice(0,16);
+    }
 
     // ---- WebRTC P2P ----
-    let pc = null, dc = null;
+    let pc = null, dc = null, myToken = null, tokenMatch = null;
     function iceServers() {
       if (icePreset.value === 'lan') { iceNote.textContent = 'LAN only'; return []; }
       iceNote.textContent = 'public STUN';
@@ -226,12 +231,37 @@
 
     function bindChannel(channel){
       dc = channel;
-      dc.onopen = ()=> addMsg('Channel open. You can chat.', false, true);
+      myToken = null; tokenMatch = null;
+      dc.onopen = async ()=> {
+        addMsg('Channel open. You can chat.', false, true);
+        if (encToggle.checked && passI.value) {
+          myToken = await hashToken(passI.value);
+          dc.send(JSON.stringify({type:'token', token: myToken}));
+        }
+      };
       dc.onclose = ()=> addMsg('Channel closed.', false, true);
       dc.onerror = e => addMsg('Channel error: '+(e.message||''), false, true);
       dc.onmessage = async (ev)=>{
         try{
           const obj = JSON.parse(ev.data);
+          if (obj.type === 'token') {
+            if (encToggle.checked && passI.value) {
+              if (!myToken) {
+                myToken = await hashToken(passI.value);
+                dc.send(JSON.stringify({type:'token', token: myToken}));
+              }
+              if (obj.token !== myToken && tokenMatch !== false) {
+                tokenMatch = false;
+                addMsg('WARNING: Passphrase mismatch. Do not send messages.', false, true);
+              } else if (obj.token === myToken) {
+                tokenMatch = true;
+              }
+            } else if (tokenMatch !== false) {
+              tokenMatch = false;
+              addMsg('WARNING: Peer sent encryption token but you have encryption disabled.', false, true);
+            }
+            return;
+          }
           if (obj.type === 'chat') {
             let text = obj.text;
             if (obj.enc && encToggle.checked && passI.value) {
@@ -300,6 +330,10 @@
 
     sendBtn.onclick = async()=>{
       if (!dc || dc.readyState !== 'open') return alert('Not connected');
+      if (encToggle.checked && passI.value) {
+        if (tokenMatch === false) return alert('Passphrase mismatch. Message not sent.');
+        if (tokenMatch === null) return alert('Passphrase not verified yet.');
+      }
       const text = input.value.trim(); if (!text) return;
       let payload = { type:'chat', from:nickI.value || 'me', ts: Date.now(), text };
       if (encToggle.checked && passI.value) {
