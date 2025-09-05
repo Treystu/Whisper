@@ -1,4 +1,6 @@
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 function startServer(port = process.env.PORT || 8080) {
   const clients = new Set();
@@ -10,9 +12,13 @@ function startServer(port = process.env.PORT || 8080) {
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive'
       });
-      res.write('\n');
+      res.write(':connected\n\n');
       clients.add(res);
+      const keepAlive = setInterval(() => {
+        res.write(':keepalive\n\n');
+      }, 30000);
       req.on('close', () => {
+        clearInterval(keepAlive);
         clients.delete(res);
       });
     } else if (req.method === 'POST' && req.url === '/message') {
@@ -24,6 +30,16 @@ function startServer(port = process.env.PORT || 8080) {
         }
         res.writeHead(204);
         res.end();
+      });
+    } else if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
+      fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
+        if (err) {
+          res.writeHead(500);
+          res.end('Server error');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(data);
       });
     } else {
       res.writeHead(404);
