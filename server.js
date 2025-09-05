@@ -10,7 +10,8 @@ function startServer(port = process.env.PORT || 8080) {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        Connection: 'keep-alive'
+        Connection: 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
       });
       res.write(':connected\n\n');
       clients.add(res);
@@ -21,6 +22,13 @@ function startServer(port = process.env.PORT || 8080) {
         clearInterval(keepAlive);
         clients.delete(res);
       });
+    } else if (req.method === 'OPTIONS' && req.url === '/message') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
+      });
+      res.end();
     } else if (req.method === 'POST' && req.url === '/message') {
       let body = '';
       req.on('data', chunk => (body += chunk));
@@ -28,7 +36,7 @@ function startServer(port = process.env.PORT || 8080) {
         for (const client of clients) {
           client.write(`data: ${body}\n\n`);
         }
-        res.writeHead(204);
+        res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
         res.end();
       });
     } else if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
