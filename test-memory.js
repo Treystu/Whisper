@@ -1,19 +1,14 @@
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const assert = require('assert');
-
-const logFile = path.join(__dirname, 'test.log');
-try { fs.unlinkSync(logFile); } catch (e) {}
-process.env.LOG_FILE = logFile;
 
 const { startServer } = require('./server');
 
-const port = 8081;
+const port = 8082;
 const server = startServer(port);
 let resRef;
 
-const req = http.request({ hostname: 'localhost', port, path: '/events', method: 'GET', headers: { Accept: 'text/event-stream' } }, res => {
+const req = http.request({ hostname: 'localhost', port, path: '/events', method: 'GET', headers: { Accept: 'text/event-stream' }
+ }, res => {
   resRef = res;
   res.setEncoding('utf8');
   let buffer = '';
@@ -58,7 +53,6 @@ function fetchLogs() {
 function cleanup() {
   if (resRef) resRef.destroy();
   server.close(() => {
-    try { fs.unlinkSync(logFile); } catch (e) {}
     process.exit(0);
   });
 }

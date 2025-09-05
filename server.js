@@ -8,7 +8,9 @@ function startServer(port = process.env.PORT || 8080) {
   const logger = createLogger();
 
   const server = http.createServer((req, res) => {
-    if (req.url === '/events') {
+    const { pathname } = new URL(req.url, 'http://localhost');
+    const urlPath = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+    if (urlPath === '/events') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -26,14 +28,14 @@ function startServer(port = process.env.PORT || 8080) {
         clients.delete(res);
         logger.info(`Client disconnected: ${req.socket.remoteAddress}`);
       });
-    } else if (req.method === 'OPTIONS' && req.url === '/message') {
+    } else if (req.method === 'OPTIONS' && urlPath === '/message') {
       res.writeHead(204, {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': '*'
       });
       res.end();
-    } else if (req.method === 'POST' && req.url === '/message') {
+    } else if (req.method === 'POST' && urlPath === '/message') {
       let body = '';
       req.on('data', chunk => (body += chunk));
       req.on('end', () => {
@@ -44,27 +46,31 @@ function startServer(port = process.env.PORT || 8080) {
         res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
         res.end();
       });
-    } else if (req.method === 'GET' && req.url === '/logs') {
+    } else if (req.method === 'GET' && urlPath === '/logs') {
       const logFile = process.env.LOG_FILE;
-      if (!logFile) {
-        res.writeHead(404);
-        res.end();
-        return;
-      }
-      fs.readFile(logFile, (err, data) => {
-        if (err) {
-          logger.error(`Error reading log file: ${err.message}`);
-          res.writeHead(500);
-          res.end('Server error');
-          return;
-        }
+      if (logFile) {
+        fs.readFile(logFile, (err, data) => {
+          if (err) {
+            logger.error(`Error reading log file: ${err.message}`);
+            res.writeHead(500);
+            res.end('Server error');
+            return;
+          }
+          res.writeHead(200, {
+            'Content-Type': 'text/plain',
+            'Content-Disposition': `attachment; filename="${path.basename(logFile)}"`
+          });
+          res.end(data);
+        });
+      } else {
+        const data = logger.getLogs();
         res.writeHead(200, {
           'Content-Type': 'text/plain',
-          'Content-Disposition': `attachment; filename="${path.basename(logFile)}"`
+          'Content-Disposition': 'attachment; filename="logs.txt"'
         });
         res.end(data);
-      });
-    } else if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
+      }
+    } else if (req.method === 'GET' && (urlPath === '/' || urlPath === '/index.html')) {
       fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
         if (err) {
           logger.error(`Error reading index.html: ${err.message}`);
