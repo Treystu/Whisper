@@ -1,4 +1,12 @@
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+
+const logFile = path.join(__dirname, 'test.log');
+try { fs.unlinkSync(logFile); } catch (e) {}
+process.env.LOG_FILE = logFile;
+
 const { startServer } = require('./server');
 
 const port = 8081;
@@ -18,7 +26,7 @@ const req = http.request({ hostname: 'localhost', port, path: '/events', method:
         if (line.startsWith('data:')) {
           const msg = line.slice(5).trim();
           console.log('Received:', msg);
-          cleanup();
+          fetchLogs();
         }
       }
       buffer = parts[parts.length - 1];
@@ -33,7 +41,24 @@ setTimeout(() => {
   post.end();
 }, 100);
 
+function fetchLogs() {
+  setTimeout(() => {
+    http.get({ hostname: 'localhost', port, path: '/logs' }, res => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', chunk => (body += chunk));
+      res.on('end', () => {
+        assert(body.includes('Broadcasting message'));
+        cleanup();
+      });
+    });
+  }, 50);
+}
+
 function cleanup() {
   if (resRef) resRef.destroy();
-  server.close(() => process.exit(0));
+  server.close(() => {
+    try { fs.unlinkSync(logFile); } catch (e) {}
+    process.exit(0);
+  });
 }
