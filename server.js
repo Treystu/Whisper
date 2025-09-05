@@ -5,7 +5,8 @@ const { createLogger } = require('./logger');
 
 function startServer(port = process.env.PORT || 8080) {
   const clients = new Set();
-  const logger = createLogger();
+  const logFile = process.env.LOG_FILE || path.join(__dirname, 'server.log');
+  const logger = createLogger({ logFile });
 
   const server = http.createServer((req, res) => {
     if (req.url === '/events') {
@@ -45,12 +46,6 @@ function startServer(port = process.env.PORT || 8080) {
         res.end();
       });
     } else if (req.method === 'GET' && req.url === '/logs') {
-      const logFile = process.env.LOG_FILE;
-      if (!logFile) {
-        res.writeHead(404);
-        res.end();
-        return;
-      }
       fs.readFile(logFile, (err, data) => {
         if (err) {
           logger.error(`Error reading log file: ${err.message}`);

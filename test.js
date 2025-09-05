@@ -3,9 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-const logFile = path.join(__dirname, 'test.log');
+const logFile = path.join(__dirname, 'server.log');
 try { fs.unlinkSync(logFile); } catch (e) {}
-process.env.LOG_FILE = logFile;
 
 const { startServer } = require('./server');
 
