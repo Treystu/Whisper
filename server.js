@@ -47,6 +47,7 @@ function startServer(port = process.env.PORT || 8080) {
         res.end();
       });
     } else if (req.method === 'GET' && urlPath === '/logs') {
+      // Serve stored logs, falling back to in-memory entries when no log file exists
       const logFile = process.env.LOG_FILE;
       if (logFile) {
         fs.readFile(logFile, (err, data) => {
