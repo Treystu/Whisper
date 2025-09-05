@@ -1,355 +1,61 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>P2P Whisper</title>
-
-  <!-- PWA hooks -->
-  <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#10b981" />
-  <link rel="icon" href="icons/icon-192.png" sizes="192x192" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whisper Chat</title>
   <style>
-    :root { --bg:#0b1020; --card:#131a2b; --muted:#9fb3c8; --accent:#10b981; --text:#e6eef7; }
-    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#0b1020,#0e1530); color:var(--text); font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;}
-    .wrap{max-width:920px;margin:24px auto;padding:16px}
-    .bar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
-    input,textarea,button,select{border-radius:12px;border:1px solid #243049;background:#0e1627;color:var(--text)}
-    input,select{padding:10px}
-    textarea{width:100%;padding:10px;min-height:120px}
-    button{padding:10px 14px;background:#15213a;border-color:#243049;cursor:pointer}
-    button.primary{background:var(--accent);border-color:var(--accent);color:#062a1f;font-weight:600}
-    button.ghost{background:transparent}
-    .grid{display:grid;grid-template-columns:1fr 360px;gap:14px}
-    @media (max-width:900px){.grid{grid-template-columns:1fr}}
-    .card{background:var(--card);border:1px solid #1e2a45;border-radius:16px;padding:14px}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .pill{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;background:#0e1627;border:1px solid #243049;border-radius:999px;color:var(--muted)}
-    .status-dot{width:8px;height:8px;border-radius:50%}
-    .list{height:360px;overflow:auto;background:#0e1627;border:1px solid #243049;border-radius:12px;padding:10px}
-    .msg{max-width:80%;margin:8px 0;padding:8px 10px;border-radius:12px;border:1px solid #243049;background:#101a31}
-    .msg.me{margin-left:auto;background:#0f2b24;border-color:#0c4739}
-    .muted{color:var(--muted)}
-    code.inline{background:#0e1627;border:1px solid #243049;border-radius:6px;padding:0 6px}
-    .qr{display:flex;align-items:center;justify-content:center;background:#0e1627;border:1px dashed #243049;border-radius:12px;height:120px}
-    .foot{opacity:.7;text-align:center;margin-top:16px}
+    body { font-family: sans-serif; margin:0; display:flex; flex-direction:column; height:100vh; }
+    #status { padding:8px; background:#eee; }
+    #messages { flex:1; padding:8px; overflow-y:auto; }
+    #inputRow { display:flex; padding:8px; gap:4px; }
+    #text { flex:1; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <div class="bar">
-      <strong style="font-size:20px">P2P Whisper</strong>
-      <span class="pill"><span id="dot" class="status-dot" style="background:#6b7280"></span> <span id="state">Not connected</span></span>
-      <span class="pill">Nick: <input id="nick" style="width:160px" /></span>
-      <span class="pill"><label><input type="checkbox" id="encToggle" /> Encrypt</label></span>
-      <input id="pass" type="password" placeholder="Passphrase" style="width:180px; display:none" />
-      <button id="installBtn" class="ghost" style="margin-left:auto">Install</button>
-      <button id="donateBtn" class="ghost">Donate</button>
-    </div>
-
-    <div class="grid">
-      <div class="card">
-        <div class="list" id="list"></div>
-        <div class="row" style="margin-top:8px">
-          <input id="input" placeholder="Type a message…" style="flex:1" />
-          <button class="primary" id="sendBtn">Send</button>
-          <button id="clearBtn" class="ghost">Clear</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="row">
-          <button id="hostBtn" class="primary">Host: Create Offer</button>
-          <button id="joinBtn">Join: Create Answer</button>
-          <select id="icePreset">
-            <option value="default">Public STUN</option>
-            <option value="lan">LAN only (no STUN)</option>
-          </select>
-        </div>
-
-        <div style="margin-top:10px">
-          <div class="muted" style="margin:6px 0">Your Offer (send to peer)</div>
-          <textarea id="offer" readonly placeholder="Click “Host: Create Offer”"></textarea>
-          <div id="offerQR" class="qr" style="margin-top:6px"></div>
-          <div class="row" style="margin-top:6px">
-            <button id="copyOffer">Copy</button>
-          </div>
-        </div>
-
-        <div style="margin-top:10px">
-          <div class="muted" style="margin:6px 0">Paste peer’s Answer</div>
-          <textarea id="answer" placeholder="Paste Answer here"></textarea>
-          <div class="row" style="margin-top:6px">
-            <button id="acceptAnswer" class="primary">Accept Answer</button>
-            <button id="scanAnswer">Scan QR</button>
-          </div>
-        </div>
-
-        <div style="margin-top:10px">
-          <div class="muted" style="margin:6px 0">Paste peer’s Offer</div>
-          <textarea id="peerOffer" placeholder="Paste Offer here"></textarea>
-          <div class="row" style="margin-top:6px">
-            <button id="makeAnswer" class="primary">Create Answer</button>
-            <button id="copyAnswer">Copy Answer</button>
-            <button id="scanOffer">Scan QR</button>
-          </div>
-          <textarea id="myAnswer" readonly placeholder="Your Answer will appear here" style="margin-top:6px"></textarea>
-          <div id="answerQR" class="qr" style="margin-top:6px"></div>
-        </div>
-
-        <div style="margin-top:10px">
-          <div class="muted">ICE servers: <code class="inline" id="iceNote">public STUN</code></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="foot">No servers. No storage. Messages are ephemeral.</div>
+  <div id="status">Connecting…</div>
+  <div id="messages"></div>
+  <div id="inputRow">
+    <input id="text" autocomplete="off" placeholder="Type a message" />
+    <button id="send">Send</button>
   </div>
-
   <script>
-    // ---- PWA install ----
-    let deferredPrompt = null;
-    const installBtn = document.getElementById('installBtn');
-    installBtn.style.display = 'none';
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.style.display = 'inline-block';
-    });
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) { await deferredPrompt.prompt(); deferredPrompt = null; installBtn.style.display = 'none'; }
-    });
-    // Register SW (required for installability)
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(console.warn);
+    const statusEl = document.getElementById('status');
+    const messagesEl = document.getElementById('messages');
 
-    // ---- UI bits ----
-    const $ = (id) => document.getElementById(id);
-    const list = $('list'); const input = $('input'); const sendBtn = $('sendBtn'); const clearBtn = $('clearBtn');
-    const dot = $('dot'); const state = $('state'); const nickI = $('nick');
-    const offerTA = $('offer'); const answerTA = $('answer'); const peerOfferTA = $('peerOffer'); const myAnswerTA = $('myAnswer');
-    const offerQR = $('offerQR'); const answerQR = $('answerQR');
-    const hostBtn = $('hostBtn'); const joinBtn = $('joinBtn'); const copyOffer = $('copyOffer'); const copyAnswer = $('copyAnswer');
-    const acceptAnswer = $('acceptAnswer'); const makeAnswer = $('makeAnswer');
-    const scanOfferBtn = $('scanOffer'); const scanAnswerBtn = $('scanAnswer');
-    const encToggle = $('encToggle'); const passI = $('pass'); const icePreset = $('icePreset'); const iceNote = $('iceNote');
-    const donateBtn = $('donateBtn');
-
-    // Persist nickname lightly
-    nickI.value = localStorage.getItem('nick') || randomNick();
-    nickI.addEventListener('input', () => localStorage.setItem('nick', nickI.value));
-
-    encToggle.addEventListener('change', () => { passI.style.display = encToggle.checked ? 'inline-block' : 'none'; });
-
-    donateBtn.addEventListener('click', () => {
-      alert("Support the project:\n- Stripe: replace with your link\n- PayPal: replace with your link\n- BTC: bc1yourbitcoinaddresshere\n(Copy and tip what it’s worth.)");
-    });
-
-    function addMsg(text, me=false, sys=false, from='peer') {
-      const d = document.createElement('div');
-      d.className = 'msg' + (me ? ' me' : '') + (sys ? ' sys' : '');
-      const who = sys ? 'system' : (me ? (nickI.value || 'me') : from);
-      d.innerHTML = `<div class="muted" style="font-size:11px;margin-bottom:4px">${who} • ${new Date().toLocaleTimeString()}</div>${escapeHtml(text)}`;
-      list.appendChild(d); list.scrollTop = list.scrollHeight;
-    }
-    function setStatus(connected) {
-      dot.style.background = connected ? '#10b981' : '#6b7280';
-      state.textContent = connected ? 'Connected' : 'Not connected';
-    }
-    function escapeHtml(s){return s.replace(/[&<>]/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
-    function randomNick(){ const a=['shadow','ember','cipher','phantom','nova','quartz','zephyr','onyx']; const b=['fox','raven','pilot','sage','viper','saber','wisp','drake']; return a[Math.random()*a.length|0]+'-'+b[Math.random()*b.length|0]+'-'+(Math.random()*999|0); }
-
-    function showQR(el, text){
-      if (!window.QRCode) return;
-      el.innerHTML = '';
-      const canvas = document.createElement('canvas');
-      QRCode.toCanvas(canvas, text, { width:110 }, err=>{ if(!err) el.appendChild(canvas); });
+    function log(msg) {
+      const div = document.createElement('div');
+      div.textContent = msg;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    async function scanToTA(ta){
-      if (!('BarcodeDetector' in window)) return alert('QR scanning not supported');
-      const video = document.createElement('video');
-      video.setAttribute('playsinline', true);
-      video.style.display = 'none';
-      document.body.appendChild(video);
-      const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }});
-      video.srcObject = stream;
-      await video.play();
-      const detector = new BarcodeDetector({ formats:['qr_code'] });
-      let stopped = false;
-      const stop = ()=>{ if(stopped) return; stopped=true; stream.getTracks().forEach(t=>t.stop()); video.remove(); };
-      const scan = async()=>{
-        if (stopped) return;
-        try{
-          const codes = await detector.detect(video);
-          if (codes.length){ ta.value = codes[0].rawValue; stop(); }
-          else requestAnimationFrame(scan);
-        }catch{ stop(); }
-      };
-      scan();
-    }
-
-    // ---- Minimal crypto (AES-GCM + PBKDF2) ----
-    async function deriveKey(pass, salt) {
-      const enc = new TextEncoder();
-      const km = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
-      return crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:100000, hash:'SHA-256' }, km, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
-    }
-    async function encrypt(pass, text){
-      const enc = new TextEncoder();
-      const salt = crypto.getRandomValues(new Uint8Array(16));
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const key = await deriveKey(pass, salt);
-      const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(text));
-      return { salt:btoa(String.fromCharCode(...salt)), iv:btoa(String.fromCharCode(...iv)), ct:btoa(String.fromCharCode(...new Uint8Array(ct))) };
-    }
-    async function decrypt(pass, obj){
-      try{
-        const b = s=>new Uint8Array(atob(s).split('').map(c=>c.charCodeAt(0)));
-        const key = await deriveKey(pass, b(obj.salt));
-        const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b(obj.iv) }, key, b(obj.ct));
-        return new TextDecoder().decode(pt);
-      }catch{ throw new Error('bad pass'); }
-    }
-    async function hashToken(pass){
-      const data = new TextEncoder().encode(pass);
-      const hash = await crypto.subtle.digest('SHA-256', data);
-      return btoa(String.fromCharCode(...new Uint8Array(hash))).slice(0,16);
-    }
-
-    // ---- WebRTC P2P ----
-    let pc = null, dc = null, myToken = null, tokenMatch = null;
-    function iceServers() {
-      if (icePreset.value === 'lan') { iceNote.textContent = 'LAN only'; return []; }
-      iceNote.textContent = 'public STUN';
-      return [{ urls: ['stun:stun.l.google.com:19302'] }];
-    }
-
-    function bindChannel(channel){
-      dc = channel;
-      myToken = null; tokenMatch = null;
-      dc.onopen = async ()=> {
-        addMsg('Channel open. You can chat.', false, true);
-        if (encToggle.checked && passI.value) {
-          myToken = await hashToken(passI.value);
-          dc.send(JSON.stringify({type:'token', token: myToken}));
-        }
-      };
-      dc.onclose = ()=> addMsg('Channel closed.', false, true);
-      dc.onerror = e => addMsg('Channel error: '+(e.message||''), false, true);
-      dc.onmessage = async (ev)=>{
-        try{
-          const obj = JSON.parse(ev.data);
-          if (obj.type === 'token') {
-            if (encToggle.checked && passI.value) {
-              if (!myToken) {
-                myToken = await hashToken(passI.value);
-                dc.send(JSON.stringify({type:'token', token: myToken}));
-              }
-              if (obj.token !== myToken && tokenMatch !== false) {
-                tokenMatch = false;
-                addMsg('WARNING: Passphrase mismatch. Do not send messages.', false, true);
-              } else if (obj.token === myToken) {
-                tokenMatch = true;
-              }
-            } else if (tokenMatch !== false) {
-              tokenMatch = false;
-              addMsg('WARNING: Peer sent encryption token but you have encryption disabled.', false, true);
-            }
-            return;
-          }
-          if (obj.type === 'chat') {
-            let text = obj.text;
-            if (obj.enc && encToggle.checked && passI.value) {
-              try { text = await decrypt(passI.value, obj.enc); }
-              catch { text = '[Encrypted message: wrong passphrase]'; }
-            }
-            addMsg(text, false, false, obj.from || 'peer');
-          }
-        }catch{/* ignore */}
+    function connect() {
+      const es = new EventSource('/events');
+      es.onopen = () => statusEl.textContent = 'Connected';
+      es.onmessage = (e) => log(e.data);
+      es.onerror = () => {
+        statusEl.textContent = 'Disconnected. Reconnecting…';
+        es.close();
+        setTimeout(connect, 1000);
       };
     }
 
-    function newPeer(){
-      if (pc) try{ pc.close(); }catch{}
-      pc = new RTCPeerConnection({ iceServers: iceServers() });
-      pc.onconnectionstatechange = ()=> setStatus(pc.connectionState === 'connected');
-      pc.onicecandidateerror = (e) => addMsg('ICE error '+e.errorCode, false, true);
-      return pc;
-    }
-    function waitIceComplete(peer){
-      if (peer.iceGatheringState === 'complete') return Promise.resolve();
-      return new Promise(res => {
-        const f = ()=> { if (peer.iceGatheringState === 'complete'){ peer.removeEventListener('icegatheringstatechange', f); res(); } };
-        peer.addEventListener('icegatheringstatechange', f);
-      });
-    }
+    connect();
 
-    hostBtn.onclick = async()=>{
-      const peer = newPeer();
-      const ch = peer.createDataChannel('whisper', { ordered:true });
-      bindChannel(ch);
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
-      await waitIceComplete(peer);
-      offerTA.value = JSON.stringify(peer.localDescription);
-      showQR(offerQR, offerTA.value);
-      addMsg('Offer ready. Send it to your peer.', false, true);
+    document.getElementById('send').onclick = async () => {
+      const text = document.getElementById('text').value;
+      if (!text) return;
+      log('Me: ' + text);
+      document.getElementById('text').value = '';
+      await fetch('/message', { method: 'POST', body: text });
     };
 
-    acceptAnswer.onclick = async()=>{
-      if (!pc) return alert('Create an offer first');
-      if (!answerTA.value.trim()) return alert('Paste an Answer');
-      try { await pc.setRemoteDescription(JSON.parse(answerTA.value)); addMsg('Answer accepted. Connecting…', false, true); }
-      catch { alert('Invalid Answer JSON'); }
-    };
-
-    joinBtn.onclick = ()=> { peerOfferTA.scrollIntoView({behavior:'smooth'}); };
-    makeAnswer.onclick = async()=>{
-      if (!peerOfferTA.value.trim()) return alert('Paste an Offer');
-      const peer = newPeer();
-      peer.ondatachannel = (ev)=> bindChannel(ev.channel);
-      try { await peer.setRemoteDescription(JSON.parse(peerOfferTA.value)); }
-      catch { return alert('Invalid Offer JSON'); }
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
-      await waitIceComplete(peer);
-      myAnswerTA.value = JSON.stringify(peer.localDescription);
-      showQR(answerQR, myAnswerTA.value);
-      addMsg('Answer ready. Return it to the host.', false, true);
-    };
-
-    copyOffer.onclick = async()=> { if (!offerTA.value) return; await navigator.clipboard.writeText(offerTA.value); };
-    copyAnswer.onclick = async()=> { if (!myAnswerTA.value) return; await navigator.clipboard.writeText(myAnswerTA.value); };
-    scanOfferBtn.onclick = ()=> scanToTA(peerOfferTA);
-    scanAnswerBtn.onclick = ()=> scanToTA(answerTA);
-
-    sendBtn.onclick = async()=>{
-      if (!dc || dc.readyState !== 'open') return alert('Not connected');
-      if (encToggle.checked && passI.value) {
-        if (tokenMatch === false) return alert('Passphrase mismatch. Message not sent.');
-        if (tokenMatch === null) return alert('Passphrase not verified yet.');
+    document.getElementById('text').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('send').click();
       }
-      const text = input.value.trim(); if (!text) return;
-      let payload = { type:'chat', from:nickI.value || 'me', ts: Date.now(), text };
-      if (encToggle.checked && passI.value) {
-        const enc = await encrypt(passI.value, text);
-        payload = { type:'chat', from:nickI.value || 'me', ts: Date.now(), text:'[encrypted]', enc };
-      }
-      dc.send(JSON.stringify(payload));
-      addMsg(text, true);
-      input.value = '';
-    };
-
-    input.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
-    clearBtn.onclick = ()=> { list.innerHTML = ''; };
-
-    // Init UI
-    setStatus(false);
+    });
   </script>
 </body>
 </html>
