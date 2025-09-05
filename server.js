@@ -51,9 +51,18 @@ function startServer(port = process.env.PORT || 8080) {
       if (logFile) {
         fs.readFile(logFile, (err, data) => {
           if (err) {
-            logger.error(`Error reading log file: ${err.message}`);
-            res.writeHead(500);
-            res.end('Server error');
+            if (err.code === 'ENOENT') {
+              const memData = logger.getLogs();
+              res.writeHead(200, {
+                'Content-Type': 'text/plain',
+                'Content-Disposition': 'attachment; filename="logs.txt"'
+              });
+              res.end(memData);
+            } else {
+              logger.error(`Error reading log file: ${err.message}`);
+              res.writeHead(500);
+              res.end('Server error');
+            }
             return;
           }
           res.writeHead(200, {
