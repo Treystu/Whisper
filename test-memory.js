@@ -51,10 +51,12 @@ function fetchLogs() {
     http
       .request({ hostname: 'localhost', port, path: '/logs?x=1', method: 'HEAD' }, resHead => {
         assert.strictEqual(resHead.statusCode, 200);
+        assert.strictEqual(resHead.headers['access-control-allow-origin'], '*');
         resHead.resume();
         resHead.on('end', () => {
           http.get({ hostname: 'localhost', port, path: '/logs?x=1' }, res => {
             assert.strictEqual(res.statusCode, 200);
+            assert.strictEqual(res.headers['access-control-allow-origin'], '*');
             let body = '';
             res.setEncoding('utf8');
             res.on('data', chunk => (body += chunk));

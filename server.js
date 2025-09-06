@@ -46,12 +46,20 @@ function startServer(port = process.env.PORT || 8080) {
         res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
         res.end();
       });
+    } else if (req.method === 'OPTIONS' && urlPath === '/logs') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
+      });
+      res.end();
     } else if ((req.method === 'GET' || req.method === 'HEAD') && urlPath === '/logs') {
       // Serve stored logs, falling back to in-memory entries when no log file exists
       const send = data => {
         res.writeHead(200, {
           'Content-Type': 'text/plain',
-          'Content-Disposition': 'attachment; filename="logs.txt"'
+          'Content-Disposition': 'attachment; filename="logs.txt"',
+          'Access-Control-Allow-Origin': '*'
         });
         if (req.method === 'HEAD') {
           res.end();
@@ -75,7 +83,8 @@ function startServer(port = process.env.PORT || 8080) {
           }
           res.writeHead(200, {
             'Content-Type': 'text/plain',
-            'Content-Disposition': `attachment; filename="${path.basename(logFile)}"`
+            'Content-Disposition': `attachment; filename="${path.basename(logFile)}"`,
+            'Access-Control-Allow-Origin': '*'
           });
           if (req.method === 'HEAD') {
             res.end();
