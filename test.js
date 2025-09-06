@@ -43,15 +43,24 @@ setTimeout(() => {
 
 function fetchLogs() {
   setTimeout(() => {
-    http.get({ hostname: 'localhost', port, path: '/logs?x=1' }, res => {
-      let body = '';
-      res.setEncoding('utf8');
-      res.on('data', chunk => (body += chunk));
-      res.on('end', () => {
-        assert(body.includes('Broadcasting message'));
-        cleanup();
-      });
-    });
+    http
+      .request({ hostname: 'localhost', port, path: '/logs?x=1', method: 'HEAD' }, resHead => {
+        assert.strictEqual(resHead.statusCode, 200);
+        resHead.resume();
+        resHead.on('end', () => {
+          http.get({ hostname: 'localhost', port, path: '/logs?x=1' }, res => {
+            assert.strictEqual(res.statusCode, 200);
+            let body = '';
+            res.setEncoding('utf8');
+            res.on('data', chunk => (body += chunk));
+            res.on('end', () => {
+              assert(body.includes('Broadcasting message'));
+              cleanup();
+            });
+          });
+        });
+      })
+      .end();
   }, 50);
 }
 

@@ -46,19 +46,26 @@ function startServer(port = process.env.PORT || 8080) {
         res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
         res.end();
       });
-    } else if (req.method === 'GET' && urlPath === '/logs') {
+    } else if ((req.method === 'GET' || req.method === 'HEAD') && urlPath === '/logs') {
       // Serve stored logs, falling back to in-memory entries when no log file exists
+      const send = data => {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain',
+          'Content-Disposition': 'attachment; filename="logs.txt"'
+        });
+        if (req.method === 'HEAD') {
+          res.end();
+        } else {
+          res.end(data);
+        }
+      };
+
       const logFile = process.env.LOG_FILE;
       if (logFile) {
         fs.readFile(logFile, (err, data) => {
           if (err) {
             if (err.code === 'ENOENT') {
-              const memData = logger.getLogs();
-              res.writeHead(200, {
-                'Content-Type': 'text/plain',
-                'Content-Disposition': 'attachment; filename="logs.txt"'
-              });
-              res.end(memData);
+              send(logger.getLogs());
             } else {
               logger.error(`Error reading log file: ${err.message}`);
               res.writeHead(500);
@@ -70,15 +77,14 @@ function startServer(port = process.env.PORT || 8080) {
             'Content-Type': 'text/plain',
             'Content-Disposition': `attachment; filename="${path.basename(logFile)}"`
           });
-          res.end(data);
+          if (req.method === 'HEAD') {
+            res.end();
+          } else {
+            res.end(data);
+          }
         });
       } else {
-        const data = logger.getLogs();
-        res.writeHead(200, {
-          'Content-Type': 'text/plain',
-          'Content-Disposition': 'attachment; filename="logs.txt"'
-        });
-        res.end(data);
+        send(logger.getLogs());
       }
     } else if (req.method === 'GET' && (urlPath === '/' || urlPath === '/index.html')) {
       fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
