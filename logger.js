@@ -7,6 +7,10 @@ function createLogger(options = {}) {
   const levelIndex = levels.indexOf(levelName);
   const logFile = options.logFile || process.env.LOG_FILE;
   const memoryLogs = [];
+  const maxEntries = Number.parseInt(
+    options.maxEntries || process.env.LOG_MEMORY_SIZE || 1000,
+    10
+  );
 
   function log(lvl, ...args) {
     if (levels.indexOf(lvl) < levelIndex) return;
@@ -15,6 +19,9 @@ function createLogger(options = {}) {
     const consoleMethod = lvl === 'debug' ? 'log' : lvl;
     console[consoleMethod](message);
     memoryLogs.push(message);
+    if (memoryLogs.length > maxEntries) {
+      memoryLogs.shift();
+    }
     if (logFile) {
       fs.appendFile(logFile, message + '\n', err => {
         if (err) console.error(`[LOGGER ERROR] ${err.message}`);

@@ -6,6 +6,6 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test.js && node test-memory.js"
+    "test": "node test.js && node test-memory.js && node test-memory-limit.js"
   }
 }
